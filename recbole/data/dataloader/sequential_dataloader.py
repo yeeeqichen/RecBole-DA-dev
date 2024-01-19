@@ -52,6 +52,9 @@ class SequentialDataLoader(AbstractDataLoader):
         self.max_item_list_len = config['MAX_ITEM_LIST_LENGTH']
 
         list_suffix = config['LIST_SUFFIX']
+        self.iid_list_field = self.iid_field + list_suffix
+        # print(self.iid_list_field)
+        # exit('debug')
         for field in dataset.inter_feat:
             if field != self.uid_field:
                 list_field = field + list_suffix
@@ -95,8 +98,8 @@ class SequentialDataLoader(AbstractDataLoader):
         self.pre_processed_data = self.augmentation(self.item_list_index, self.target_index, self.item_list_length)
         # used for DuoRec semantic positive sampling
         if self.config['model'] == 'DuoRec':
-            self.static_item_id_list = self.pre_processed_data['item_id_list'].detach().clone()
-            self.static_item_length = self.pre_processed_data['item_length'].detach().clone()
+            self.static_item_id_list = self.pre_processed_data[self.iid_list_field].detach().clone()
+            self.static_item_length = self.pre_processed_data[self.item_list_length_field].detach().clone()
 
     @property
     def pr_end(self):
@@ -132,6 +135,8 @@ class SequentialDataLoader(AbstractDataLoader):
             self.cl4srec_aug(cur_data)
         elif self.config['SSL_AUG'] == 'DuoRec' and self.phase == 'train':
             self.duorec_aug(cur_data, index)
+        elif self.config['SSL_AUG'] == 'VaSCL' and self.phase == 'train':
+            self.vascl_aug(cur_data)
         
         return cur_data
     
@@ -150,8 +155,8 @@ class SequentialDataLoader(AbstractDataLoader):
         sem_pos_seqs = self.static_item_id_list[sample_pos]
         sem_pos_lengths = self.static_item_length[sample_pos]
         if null_index:
-            sem_pos_seqs[null_index] = cur_data['item_id_list'][null_index]
-            sem_pos_lengths[null_index] = cur_data['item_length'][null_index]
+            sem_pos_seqs[null_index] = cur_data[self.iid_list_field][null_index]
+            sem_pos_lengths[null_index] = cur_data[self.item_list_length_field][null_index]
         
         cur_data.update(Interaction({'sem_aug': sem_pos_seqs, 'sem_aug_lengths': sem_pos_lengths}))
     
@@ -182,8 +187,8 @@ class SequentialDataLoader(AbstractDataLoader):
             reordered_item_seq[reorder_begin:reorder_begin + num_reorder] = reordered_item_seq[shuffle_index]
             return reordered_item_seq, length
         
-        seqs = cur_data['item_id_list']
-        lengths = cur_data['item_length']
+        seqs = cur_data[self.iid_list_field]
+        lengths = cur_data[self.item_list_length_field]
 
         aug_seq1 = []
         aug_len1 = []
@@ -218,6 +223,9 @@ class SequentialDataLoader(AbstractDataLoader):
         
         cur_data.update(Interaction({'aug1': torch.stack(aug_seq1), 'aug_len1': torch.stack(aug_len1),
                                      'aug2': torch.stack(aug_seq2), 'aug_len2': torch.stack(aug_len2)}))
+
+    def vascl_aug(self, cur_data):
+        pass
 
     def augmentation(self, item_list_index, target_index, item_list_length):
         """Data augmentation.

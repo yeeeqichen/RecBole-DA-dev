@@ -94,7 +94,7 @@ class SequentialDataset(Dataset):
             same_target_index = np.load(aug_path, allow_pickle=True)
         else:
             same_target_index = []
-            target_item = self.inter_feat['item_id'][target_index].numpy()
+            target_item = self.inter_feat[self.config['ITEM_ID_FIELD']][target_index].numpy()
             for index, item_id in enumerate(target_item):
                 all_index_same_id = np.where(target_item == item_id)[0]  # all index of a specific item id with self item
                 delete_index = np.argwhere(all_index_same_id == index)
